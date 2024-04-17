@@ -2,12 +2,28 @@ import { PrismaClient } from '@prisma/client/edge';
 import { withAccelerate } from '@prisma/extension-accelerate';
 import { Hono } from 'hono';
 import zod from 'zod';
+import { Jwt } from 'hono/utils/jwt';
 
 const blogs = new Hono<{
   Bindings: {
     DATABASE_URL: string;
+    JWT_SECRET: string;
   };
 }>();
+
+blogs.use('/*', async (c, next) => {
+  const token = c.req.header()?.authorization?.split(' ')[1];
+  try {
+    await Jwt.verify(token, c.env.JWT_SECRET);
+
+    await next();
+  } catch (error) {
+    c.status(401);
+    return c.json({
+      message: 'Not authorized',
+    });
+  }
+});
 
 blogs.post('/', async (c) => {
   const body = await c.req.json();
